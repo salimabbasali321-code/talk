@@ -33,6 +33,7 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(127,216,173,.7);animation:ping 1.6s infinite}
 .live.demo{background:rgba(212,175,99,.14);border-color:rgba(212,175,99,.45);color:var(--gold)}.live.demo i{background:var(--gold)}
 @keyframes ping{70%{box-shadow:0 0 0 10px rgba(127,216,173,0)}100%{box-shadow:0 0 0 0 rgba(127,216,173,0)}}
+.sync{font-size:12px;color:var(--muted)}.sync.bad{color:#f0a36a;font-weight:700}
 .title{font-family:Fraunces,serif;font-weight:800;font-size:30px;letter-spacing:-.5px}
 .title em{font-style:italic;font-weight:700;color:var(--gold)}
 .title small{font-family:Manrope,sans-serif;font-size:13px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);margin-left:10px}
@@ -105,6 +106,7 @@ aside{position:sticky;top:22px;align-self:start}
 <div class="app">
   <header>
     <span class="live" id="live"><i></i>LIVE</span>
+    <span class="sync" id="sync">Connecting…</span>
     <div class="title">Real <em>Talk</em><small>Fiqh · Class 8</small></div>
     <div class="spacer"></div>
     <div class="total"><b id="total">0</b>answers</div>
@@ -206,10 +208,17 @@ aside{position:sticky;top:22px;align-self:start}
     $('board').querySelectorAll('.a').forEach(function(d){var a=answers.find(function(x){return String(x.id)===d.dataset.id});if(a){var m=d.querySelector('.meta');if(m)m.textContent='Anonymous · '+ago(a.t)}});
   }
 
-  var cbN=0;
+  var cbN=0, lastOk=0;
+  function got(res){if(res&&res.ok){ingest(res.rows||[]);lastOk=Date.now();sync()}}
+  function sync(){var el=$('sync');if(demo){el.textContent='';return}var s=(Date.now()-lastOk)/1000;
+    if(lastOk&&s<20){el.textContent='Connected';el.className='sync'}else{el.textContent=lastOk?'Reconnecting… check the internet':'Connecting…';el.className='sync'+(lastOk||s>20?' bad':'')}}
+  setInterval(sync,2000);
   function poll(){
+    fetch(url+(url.indexOf('?')<0?'?':'&')+'action=list&_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(got).catch(jsonp);
+  }
+  function jsonp(){
     var name='rt8cb'+(cbN++), s=document.createElement('script'), done=false;
-    window[name]=function(res){done=true;delete window[name];s.remove();if(res&&res.ok)ingest(res.rows||[])};
+    window[name]=function(res){done=true;delete window[name];s.remove();got(res)};
     s.onerror=function(){delete window[name];s.remove()};
     s.src=url+(url.indexOf('?')<0?'?':'&')+'action=list&callback='+name+'&_='+Date.now();
     document.body.appendChild(s);
